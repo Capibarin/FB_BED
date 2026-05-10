@@ -19,14 +19,15 @@ def prepare_dataset(n, N, cond_dim, locs):
     C = np.random.randint(low=0, high=cond_dim, size=(N))
     X = np.concatenate([np.random.normal(loc=locs[c], scale=1, size=(1, n)) for c in C])
 
-    X_train, X_test, C_train, C_test = train_test_split(X, C, test_size=10_000)
+    X_train, X_val_test, C_train, C_val_test = train_test_split(X, C, test_size=20_000)
+    X_val, X_test, C_val, C_test = train_test_split(X_val_test, C_val_test, test_size=10_000)
 
     X_train = torch.tensor(X_train).to("cuda").float()
     C_train = F.one_hot(torch.tensor(C_train).long(), num_classes=cond_dim).to("cuda").float()
 
-    X_test = torch.tensor(X_test).to("cuda").float()
-    C_test = F.one_hot(torch.tensor(C_test).long(), num_classes=cond_dim).to("cuda").float()
-    return X_train, X_test, C_train, C_test
+    X_val = torch.tensor(X_val).to("cuda").float()
+    C_val = F.one_hot(torch.tensor(C_val).long(), num_classes=cond_dim).to("cuda").float()
+    return X_train, X_val, C_train, C_val
 
 def build_train_loader(X_train, C_train, batch_size):
     dataset = ArrayDataset(X_train, C_train)
@@ -72,14 +73,14 @@ def main(cfg: DictConfig):
     os.makedirs("./runs/gaussian_tests/scripts/checkpoints/", exist_ok=True)
 
     n = cfg.num_dims
-    N = 100_000
+    N = 110_000
     cond_dim = 2
     batch_size = 512
     n_steps = 100_000
     n_tries = 3
     control = np.array([1, 0])
     condition = np.array([0, 1])
-    locs = [[0 for _ in range(n)]] + [[4 for _ in range(n)]]
+    locs = [[0 for _ in range(n)]] + [[2 for _ in range(n)]]
     sigma = 0
     sigma_min = 0
 
@@ -200,7 +201,7 @@ def main(cfg: DictConfig):
                     "C_test": C_test
                 }, f)
 
-    with open(f"./notebooks/gaussian_tests/sweep_results/sweep_loc4_{cfg.num_dims}_{cfg.lr}_{cfg.cond_latent_dim}.pkl", "wb") as f:
+    with open(f"./notebooks/gaussian_tests/sweep_results/sweep_loc2_{cfg.num_dims}_{cfg.lr}_{cfg.cond_latent_dim}.pkl", "wb") as f:
         pickle.dump(results, f)
 
     print("FINISHED")

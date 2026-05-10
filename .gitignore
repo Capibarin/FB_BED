@@ -186,6 +186,9 @@ weights/
 checkpoints/
 table_results/
 sweep_results/
+new_table_results/
+new_sweep_results/
+repar_rl_results/
 
 # h5ad files
 *.h5ad

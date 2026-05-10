@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=tables_scFM
+#SBATCH --job-name=tables_scRatio
 #SBATCH --output=./runs/gaussian_tests/sbatches/outputs/sweep_output_%A.txt
 #SBATCH --error=./runs/gaussian_tests/sbatches/outputs/sweep_error_%A.txt
 #SBATCH --ntasks=1
@@ -17,5 +17,5 @@ python ./runs/gaussian_tests/scripts/make_a_sweep.py \
     +num_dims=2,5,10,20,30 \
     +lr=0.001,0.0001 \
     +cond_latent_dim=32,64,128 \
-    +start_from_scratch=true \
-    +launcher=super_gpu_normal
+    +start_from_scratch=false \
+    +launcher=gpu_normal

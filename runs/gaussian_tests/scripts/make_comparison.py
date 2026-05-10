@@ -19,14 +19,18 @@ def prepare_dataset(n, N, cond_dim, locs):
     C = np.random.randint(low=0, high=cond_dim, size=(N))
     X = np.concatenate([np.random.normal(loc=locs[c], scale=1, size=(1, n)) for c in C])
 
-    X_train, X_test, C_train, C_test = train_test_split(X, C, test_size=10_000)
+    X_train, X_val_test, C_train, C_val_test = train_test_split(X, C, test_size=20_000)
+    X_val, X_test, C_val, C_test = train_test_split(X_val_test, C_val_test, test_size=10_000)
 
     X_train = torch.tensor(X_train).to("cuda").float()
     C_train = F.one_hot(torch.tensor(C_train).long(), num_classes=cond_dim).to("cuda").float()
 
+    X_val = torch.tensor(X_val).to("cuda").float()
+    C_val = F.one_hot(torch.tensor(C_val).long(), num_classes=cond_dim).to("cuda").float()
+
     X_test = torch.tensor(X_test).to("cuda").float()
     C_test = F.one_hot(torch.tensor(C_test).long(), num_classes=cond_dim).to("cuda").float()
-    return X_train, X_test, C_train, C_test
+    return X_train, X_val, X_test, C_train, C_val, C_test
 
 def build_train_loader(x_train, c_train, batch_size):
     dataset = ArrayDataset(x_train, c_train)
@@ -69,24 +73,24 @@ def evaluate_model(model, data_samples, cond, cond_dim, condition, control, locs
 def get_params(num_dims):
     if num_dims == 2:
         time_feature_dim = 32
-        latent_dim = 128
+        latent_dim = 32
         cond_latent_dim = 64
     elif num_dims == 5:
         time_feature_dim = 1
         latent_dim = 256
         cond_latent_dim = 64
     elif num_dims == 10:
-        time_feature_dim = 1
-        latent_dim = 256
-        cond_latent_dim = 128
-    elif num_dims == 20:
         time_feature_dim = 32
-        latent_dim = 64
+        latent_dim = 32
         cond_latent_dim = 32
+    elif num_dims == 20:
+        time_feature_dim = 1
+        latent_dim = 64
+        cond_latent_dim = 128
     elif num_dims == 30:
         time_feature_dim = 1
-        latent_dim = 128
-        cond_latent_dim = 64
+        latent_dim = 32
+        cond_latent_dim = 128
     elif num_dims == 50:
         time_feature_dim = 32
         latent_dim = 256
@@ -102,11 +106,11 @@ def main(cfg: DictConfig):
     os.makedirs("./runs/gaussian_tests/scripts/checkpoints/", exist_ok=True)
 
     n = cfg.num_dims
-    N = 100_000
+    N = cfg.num_samples
     cond_dim = 2
     batch_size = 512
     n_steps = 100_000
-    n_tries = 5
+    n_tries = 3
     control = np.array([1, 0])
     condition = np.array([0, 1])
     locs = [[0 for _ in range(n)]] + [[cfg.loc for _ in range(n)]]
@@ -115,25 +119,38 @@ def main(cfg: DictConfig):
 
     latent_dim, time_feature_dim, cond_latent_dim = get_params(cfg.num_dims)
 
-    names = ["true", "naive", "ct own rl"]
+    names = ["true", "naive", "ct own rl"] 
 
     if cfg.start_from_scratch:
-        X_train, X_test, C_train, C_test = prepare_dataset(n, N, cond_dim, locs)
+        X_train, X_val, X_test, C_train, C_val, C_test = prepare_dataset(n, N, cond_dim, locs)
 
-        results = {}
+        val_results = {}
+        test_results = {}
 
         sigma_min_last = 2
     else:
-        with open(f"./runs/gaussian_tests/scripts/checkpoints/checkpoint_{cfg.loc}_{cfg.num_dims}.pkl", "rb") as f:
-            saved_vars = pickle.load(f)
+        try:
+            with open(f"./runs/gaussian_tests/scripts/checkpoints/main_checkpoint_{cfg.loc}_{cfg.num_dims}_{cfg.num_samples}.pkl", "rb") as f:
+                saved_vars = pickle.load(f)
 
-        results = saved_vars["results"]
-        sigma_last = saved_vars["sigma_last"]
-        sigma_min_last = saved_vars["sigma_min_last"]
-        X_train = saved_vars["X_train"]
-        X_test = saved_vars["X_test"]
-        C_train = saved_vars["C_train"]
-        C_test = saved_vars["C_test"]
+            val_results = saved_vars["val_results"]
+            test_results = saved_vars["test_results"]
+            sigma_last = saved_vars["sigma_last"]
+            sigma_min_last = saved_vars["sigma_min_last"]
+            X_train = saved_vars["X_train"]
+            X_val = saved_vars["X_val"]
+            X_test = saved_vars["X_test"]
+            C_train = saved_vars["C_train"]
+            C_val = saved_vars["C_val"]
+            C_test = saved_vars["C_test"]
+        except:
+            print("Could not load checkpoint, starting from scratch")
+            X_train, X_val, X_test, C_train, C_val, C_test = prepare_dataset(n, N, cond_dim, locs)
+
+            val_results = {}
+            test_results = {}
+
+            sigma_min_last = 2
 
     for sigma_min in sigma_mins:
         if sigma_min >= sigma_min_last:
@@ -145,8 +162,10 @@ def main(cfg: DictConfig):
         lambda_t = lambda t: torch.sqrt((1 - (1 - sigma_min) * t) ** 2 + sigma * t * (1 - t))
         lambda_sp_t = lambda t: (sigma * (1 - 2 * t) - 2 * (1 - sigma_min) * (1 - (1 - sigma_min) * t)) / 2
         
-        tmp_results = {name: np.array([]) for name in names}
-        time_results = {name: [] for name in names}
+        val_tmp_results = {name: np.array([]) for name in names}
+        test_tmp_results = {name: np.array([]) for name in names}
+        val_time_results = {name: [] for name in names}
+        test_time_results = {name: [] for name in names}
         for _ in tqdm(range(n_tries)):
             model = ConditionalFlowMatchingWithScore(
                 input_dim=n,
@@ -173,16 +192,24 @@ def main(cfg: DictConfig):
             )
             trainer.fit(model, train_dataloaders=train_loader)
 
-            log_ratios, times = evaluate_model(model, X_test, C_test, cond_dim, condition, control, locs)
+            val_log_ratios, val_times = evaluate_model(model, X_val, C_val, cond_dim, condition, control, locs)
+            test_log_ratios, test_times = evaluate_model(model, X_test, C_test, cond_dim, condition, control, locs)
     
             for i, name in enumerate(names):
-                if tmp_results[name].shape[0] == 0:
-                    tmp_results[name] = log_ratios[i].reshape(-1, 1)
+                if val_tmp_results[name].shape[0] == 0:
+                    val_tmp_results[name] = val_log_ratios[i].reshape(-1, 1)
                 else:
-                    tmp_results[name] = np.concatenate([tmp_results[name], log_ratios[i].reshape(-1, 1)], axis=1)
-                    
-                time_results[name].append(times[i])
-                    
+                    val_tmp_results[name] = np.concatenate([val_tmp_results[name], val_log_ratios[i].reshape(-1, 1)], axis=1)
+
+                val_time_results[name].append(val_times[i])
+
+                if test_tmp_results[name].shape[0] == 0:
+                    test_tmp_results[name] = test_log_ratios[i].reshape(-1, 1)
+                else:
+                    test_tmp_results[name] = np.concatenate([test_tmp_results[name], test_log_ratios[i].reshape(-1, 1)], axis=1)
+
+                test_time_results[name].append(test_times[i])
+
         for name in names:
             if name == "true":
                 key =  "- - true"
@@ -193,25 +220,36 @@ def main(cfg: DictConfig):
             else:
                 raise ValueError("Unknown value for name")
             
-            if key in results:
-                results[key]["value"] = np.concatenate([results[key]["value"], tmp_results[name]], axis=1)
-                results[key]["time"] += time_results[name]
+            if key in val_results:
+                val_results[key]["value"] = np.concatenate([val_results[key]["value"], val_tmp_results[name]], axis=1)
+                val_results[key]["time"] += val_time_results[name]
             else:
-                results[key] = {}
-                results[key]["value"] = tmp_results[name]
-                results[key]["time"] = time_results[name]
+                val_results[key] = {}
+                val_results[key]["value"] = val_tmp_results[name]
+                val_results[key]["time"] = val_time_results[name]
+
+            if key in test_results:
+                test_results[key]["value"] = np.concatenate([test_results[key]["value"], test_tmp_results[name]], axis=1)
+                test_results[key]["time"] += test_time_results[name]
+            else:
+                test_results[key] = {}
+                test_results[key]["value"] = test_tmp_results[name]
+                test_results[key]["time"] = test_time_results[name]
 
         sigma_last = sigma
         sigma_min_last = sigma_min
 
-        with open(f"./runs/gaussian_tests/scripts/checkpoints/checkpoint_{cfg.loc}_{cfg.num_dims}.pkl", "wb") as f:
+        with open(f"./runs/gaussian_tests/scripts/checkpoints/main_checkpoint_{cfg.loc}_{cfg.num_dims}_{cfg.num_samples}.pkl", "wb") as f:
             pickle.dump({
-                "results": results,
+                "val_results": val_results,
+                "test_results": test_results,
                 "sigma_last": sigma_last,
                 "sigma_min_last": sigma_min_last,
                 "X_train": X_train,
+                "X_val": X_val,
                 "X_test": X_test,
                 "C_train": C_train,
+                "C_val": C_val,
                 "C_test": C_test
             }, f)
 
@@ -224,8 +262,10 @@ def main(cfg: DictConfig):
         lambda_t = lambda t: torch.sqrt((1 - (1 - sigma_min) * t) ** 2 + sigma * t * (1 - t))
         lambda_sp_t = lambda t: (sigma * (1 - 2 * t) - 2 * (1 - sigma_min) * (1 - (1 - sigma_min) * t)) / 2
         
-        tmp_results = {name: np.array([]) for name in names}
-        time_results = {name: [] for name in names}
+        val_tmp_results = {name: np.array([]) for name in names}
+        test_tmp_results = {name: np.array([]) for name in names}
+        val_time_results = {name: [] for name in names}
+        test_time_results = {name: [] for name in names}
         for _ in tqdm(range(n_tries)):
             model = ConditionalFlowMatchingWithScore(
                 input_dim=n,
@@ -248,20 +288,28 @@ def main(cfg: DictConfig):
                 max_steps=n_steps,
                 logger=False,
                 enable_checkpointing=False,
-                enable_progress_bar=True,
+                enable_progress_bar=False,
             )
             trainer.fit(model, train_dataloaders=train_loader)
 
-            log_ratios, times = evaluate_model(model, X_test, C_test, cond_dim, condition, control, locs)
+            val_log_ratios, val_times = evaluate_model(model, X_val, C_val, cond_dim, condition, control, locs)
+            test_log_ratios, test_times = evaluate_model(model, X_test, C_test, cond_dim, condition, control, locs)
 
             for i, name in enumerate(names):
-                if tmp_results[name].shape[0] == 0:
-                    tmp_results[name] = log_ratios[i].reshape(-1, 1)
+                if val_tmp_results[name].shape[0] == 0:
+                    val_tmp_results[name] = val_log_ratios[i].reshape(-1, 1)
                 else:
-                    tmp_results[name] = np.concatenate([tmp_results[name], log_ratios[i].reshape(-1, 1)], axis=1)
-                    
-                time_results[name].append(times[i])
-                    
+                    val_tmp_results[name] = np.concatenate([val_tmp_results[name], val_log_ratios[i].reshape(-1, 1)], axis=1)
+
+                val_time_results[name].append(val_times[i])
+
+                if test_tmp_results[name].shape[0] == 0:
+                    test_tmp_results[name] = test_log_ratios[i].reshape(-1, 1)
+                else:
+                    test_tmp_results[name] = np.concatenate([test_tmp_results[name], test_log_ratios[i].reshape(-1, 1)], axis=1)
+
+                test_time_results[name].append(test_times[i])
+
         for name in names:
             if name == "true":
                 key =  "- - true"
@@ -272,24 +320,39 @@ def main(cfg: DictConfig):
             else:
                 raise ValueError("Unknown value for name")
             
-            if key in results:
-                results[key]["value"] = np.concatenate([results[key]["value"], tmp_results[name]], axis=1)
-                results[key]["time"] += time_results[name]
+            if key in val_results:
+                val_results[key]["value"] = np.concatenate([val_results[key]["value"], val_tmp_results[name]], axis=1)
+                val_results[key]["time"] += val_time_results[name]
             else:
-                results[key] = {}
-                results[key]["value"] = tmp_results[name]
-                results[key]["time"] = time_results[name]
+                val_results[key] = {}
+                val_results[key]["value"] = val_tmp_results[name]
+                val_results[key]["time"] = val_time_results[name]
+
+            if key in test_results:
+                test_results[key]["value"] = np.concatenate([test_results[key]["value"], test_tmp_results[name]], axis=1)
+                test_results[key]["time"] += test_time_results[name]
+            else:
+                test_results[key] = {}
+                test_results[key]["value"] = test_tmp_results[name]
+                test_results[key]["time"] = test_time_results[name]
 
     mask_condition = np.all(C_test.cpu().numpy() == condition, axis=1)
     mask_control = np.all(C_test.cpu().numpy() == control, axis=1)
     mask_both = mask_condition | mask_control 
 
-    results["mask_condition"] = mask_condition
-    results["mask_control"] = mask_control
-    results["mask_both"] = mask_both
+    val_results["mask_condition"] = mask_condition
+    val_results["mask_control"] = mask_control
+    val_results["mask_both"] = mask_both
 
-    with open(f"./notebooks/gaussian_tests/table_results/results_icml_{cfg.loc}_{cfg.num_dims}_swept2.pkl", "wb") as f:
-        pickle.dump(results, f)
+    test_results["mask_condition"] = mask_condition
+    test_results["mask_control"] = mask_control
+    test_results["mask_both"] = mask_both
+
+    with open(f"./notebooks/gaussian_tests/table_results/val_results_icml_{cfg.loc}_{cfg.num_dims}_{cfg.num_samples}.pkl", "wb") as f:
+        pickle.dump(val_results, f)
+
+    with open(f"./notebooks/gaussian_tests/table_results/test_results_icml_{cfg.loc}_{cfg.num_dims}_{cfg.num_samples}.pkl", "wb") as f:
+        pickle.dump(test_results, f)
 
     print("FINISHED")
     
