@@ -255,11 +255,14 @@ MIT License - see LICENSE file for details.
 If you use scRatio in your research, please cite:
 
 ```bibtex
-@software{scratio2025,
-  title={scRatio: Flow Matching for Single-Cell Density Estimation},
-  author={Your Name},
-  year={2025},
-  url={https://github.com/yourusername/scRatio}
+@misc{antipov2026flowbaseddensityratioestimation,
+      title={Flow-Based Density Ratio Estimation for Intractable Distributions with Applications in Genomics}, 
+      author={Egor Antipov and Alessandro Palma and Lorenzo Consoli and Stephan Günnemann and Andrea Dittadi and Fabian J. Theis},
+      year={2026},
+      eprint={2602.24201},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2602.24201}, 
 }
 ```
 
