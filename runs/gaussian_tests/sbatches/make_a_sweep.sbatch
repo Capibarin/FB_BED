@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=tables_scFM
+#SBATCH --job-name=tables_scRatio
 #SBATCH --output=./runs/gaussian_tests/sbatches/outputs/sweep_output_%A.txt
 #SBATCH --error=./runs/gaussian_tests/sbatches/outputs/sweep_error_%A.txt
 #SBATCH --ntasks=1
@@ -10,8 +10,6 @@
 #SBATCH --qos=cpu_normal
 #SBATCH --nice=0
 
-source /home/icb/egor.antipov/miniconda3/bin/activate
-conda activate scaling-transformers
 export HYDRA_FULL_ERROR=1
 
 python ./runs/gaussian_tests/scripts/make_a_sweep.py \

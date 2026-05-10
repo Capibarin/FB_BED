@@ -215,10 +215,10 @@ def main(cfg: DictConfig):
     test_results["mask_control"] = mask_control
     test_results["mask_both"] = mask_both
 
-    with open(f"./notebooks/gaussian_tests/new_table_results/val_results_icml2_{cfg.loc}_{cfg.num_dims}_{cfg.num_samples}.pkl", "wb") as f:
+    with open(f"./notebooks/gaussian_tests/table_results/val_results_icml2_{cfg.loc}_{cfg.num_dims}_{cfg.num_samples}.pkl", "wb") as f:
         pickle.dump(val_results, f)
 
-    with open(f"./notebooks/gaussian_tests/new_table_results/test_results_icml2_{cfg.loc}_{cfg.num_dims}_{cfg.num_samples}.pkl", "wb") as f:
+    with open(f"./notebooks/gaussian_tests/table_results/test_results_icml2_{cfg.loc}_{cfg.num_dims}_{cfg.num_samples}.pkl", "wb") as f:
         pickle.dump(test_results, f)
 
     print("FINISHED")

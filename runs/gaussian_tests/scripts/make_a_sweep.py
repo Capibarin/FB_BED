@@ -201,7 +201,7 @@ def main(cfg: DictConfig):
                     "C_test": C_test
                 }, f)
 
-    with open(f"./notebooks/gaussian_tests/new_sweep_results/sweep_loc2_{cfg.num_dims}_{cfg.lr}_{cfg.cond_latent_dim}.pkl", "wb") as f:
+    with open(f"./notebooks/gaussian_tests/sweep_results/sweep_loc2_{cfg.num_dims}_{cfg.lr}_{cfg.cond_latent_dim}.pkl", "wb") as f:
         pickle.dump(results, f)
 
     print("FINISHED")
