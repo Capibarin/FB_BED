@@ -242,6 +242,10 @@ for k in range(200_000):
     optimizer.step()
 ```
 
+## Data availability
+
+The processed data used in the paper is available [here](https://zenodo.org/records/20822377). 
+
 ## Contributing
 
 Contributions are welcome! Please feel free to open issues or submit pull requests.
@@ -255,14 +259,13 @@ MIT License - see LICENSE file for details.
 If you use scRatio in your research, please cite:
 
 ```bibtex
-@misc{antipov2026flowbaseddensityratioestimation,
-      title={Flow-Based Density Ratio Estimation for Intractable Distributions with Applications in Genomics}, 
-      author={Egor Antipov and Alessandro Palma and Lorenzo Consoli and Stephan Günnemann and Andrea Dittadi and Fabian J. Theis},
-      year={2026},
-      eprint={2602.24201},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG},
-      url={https://arxiv.org/abs/2602.24201}, 
+@inproceedings{
+anonymous2026flowbased,
+title={Flow-Based Density Ratio Estimation for Intractable Distributions with Applications in Genomics},
+author={Anonymous},
+booktitle={Forty-third International Conference on Machine Learning},
+year={2026},
+url={https://openreview.net/forum?id=5zbPdMNcl9}
 }
 ```
 
