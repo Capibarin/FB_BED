@@ -1,3 +1,0 @@
-adata_path: "../../../project_folder/data/celegans/c_elegans.h5ad"
-output_dir: "../../../project_folder/results/celegans/"
-scvi_model_dir: path_to_scvi

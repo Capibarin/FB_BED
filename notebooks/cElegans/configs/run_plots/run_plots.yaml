@@ -1,9 +1,0 @@
-# @package _global_
-
-# default (unconditional)
-defaults:
-  - _self_
-  - adata_setup: default
-  - cfm: default
-  - hydra: default
-  - paths: default

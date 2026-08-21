@@ -1,8 +1,0 @@
-# @package _global_
-
-# default (unconditional)
-defaults:
-  - _self_
-  - paths: default
-  - scheduler: default
-  - hydra: default

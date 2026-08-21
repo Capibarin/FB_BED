@@ -1,7 +1,0 @@
-model:
-  input_dim: 5
-  cond_dims: [4, 4]
-  hidden_dims: [1024, 1024, 1024]
-  encoder_hidden_dims: [256]
-  encoder_out_dim: 50
-  betas: [0.2, 0.2]

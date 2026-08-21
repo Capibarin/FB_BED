@@ -1,2 +1,0 @@
-res_dir: "../../../project_folder/results/abundance_test_experiment/mrvi"
-adata_path: "../../../project_folder/data/pbmc68k_oversampled/pbmc68k_0.05.h5ad"

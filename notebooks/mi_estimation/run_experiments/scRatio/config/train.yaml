@@ -1,8 +1,0 @@
-# @package _global_
-
-# default (unconditional)
-defaults:
-  - _self_
-  - paths: default
-  - misc: default
-  - hydra: default

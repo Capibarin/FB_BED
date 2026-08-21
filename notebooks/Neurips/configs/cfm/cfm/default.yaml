@@ -1,8 +1,0 @@
-sigma: 0.0
-sigma_min: 1e-2
-hidden_dims: [1024, 1024, 1024]
-encoder_hidden_dims: [256]
-encoder_out_dim: 10
-betas: [0.2, 0.2]
-lr: 1e-4
-use_ot_sampler: False
